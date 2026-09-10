@@ -1,25 +1,40 @@
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  color: #38242c;
-  background: #f6eeeb;
+  --color-pink: #ca3f8b;
+  --color-blue: #030252;
+  --color-green: #affe79;
+  /* The spec gives the same hex for light blue and green; preserve it pending clarification. */
+  --color-light-blue: #affe79;
+  --color-paper: #fff;
+  --font-display: 'Bungee', Impact, sans-serif;
+  --font-secondary: 'Roboto', Arial, sans-serif;
+  /* Faricy New requires a licensed webfont/Adobe kit; Roboto is the explicit interim fallback. */
+  --font-body: 'Faricy New', 'Roboto', Arial, sans-serif;
+  --space-1: .5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2rem;
+  --space-5: 3rem;
+  --space-6: 5rem;
+  --border: 2px solid var(--color-blue);
+  --radius: .25rem;
+  --page-gutter: clamp(1.25rem, 4vw, 4rem);
+  font-family: var(--font-body);
+  color: var(--color-blue);
+  background: var(--color-paper);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-}
-
-#root {
-  display: grid;
-  min-height: 100svh;
-  place-items: center;
-  padding: 1.25rem;
-}
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: inherit; text-underline-offset: .25em; }
+button, select { font: inherit; color: inherit; }
+button, a, select { -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--color-blue); outline-offset: 5px; }
+h1, h2, h3, p { margin: 0; }
+img { display: block; max-width: 100%; }
+.skip-link { position: absolute; top: -8rem; left: 1rem; padding: 1rem; z-index: 20; background: var(--color-green); }
+.skip-link:focus { top: 1rem; }
+::selection { background: var(--color-green); color: var(--color-blue); }

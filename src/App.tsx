@@ -1,13 +1,55 @@
+import { useEffect, useState } from 'react'
+import type { ProductsResponse } from '../shared/products'
+import { SiteHeader } from './components/SiteHeader'
+import { ProductCard } from './components/ProductCard'
 import './App.css'
 
+type CatalogState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: ProductsResponse }
+
 function App() {
+  const [catalog, setCatalog] = useState<CatalogState>({ status: 'loading' })
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch('/api/products', { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Catalog unavailable')
+        const data = await response.json() as ProductsResponse
+        if (!Array.isArray(data.products)) throw new Error('Invalid catalog')
+        if (!controller.signal.aborted) setCatalog({ status: 'ready', data })
+      })
+      .catch(() => { if (!controller.signal.aborted) setCatalog({ status: 'error' }) })
+    return () => controller.abort()
+  }, [attempt])
+
   return (
-    <main className="welcome">
-      <p className="eyebrow">A little polish. A lot of personality.</p>
-      <h1>bestbvnnies</h1>
-      <p className="intro">Our new home is taking shape.</p>
-      <p className="status"><span aria-hidden="true" />The app is up and running.</p>
-    </main>
+    <>
+      <a className="skip-link" href="#shop">Skip to products</a>
+      <SiteHeader />
+      <main>
+        <section className="editorial" aria-labelledby="intro-title">
+          <div className="edition-line"><span>THE BESTBVNNIES EDIT</span><span>NAILS WITH PERSONALITY</span></div>
+          <div className="headline-wrap">
+            <h1 id="intro-title">SMALL DETAILS.<br /><span>BIG ENERGY.</span></h1>
+            <span className="editorial-sticker" aria-hidden="true">very<br /><em>you.</em> ✳</span>
+          </div>
+          <div className="intro-bottom"><p>Your next nail obsession starts here.</p><a className="shop-link" href="#shop">Explore the shop <span aria-hidden="true">↓</span></a></div>
+        </section>
+        <div className="ticker" aria-hidden="true"><span>BESTBVNNIES ✳ PRESS PLAY. DRESS UP. ✳ BESTBVNNIES ✳ PRESS PLAY. DRESS UP. ✳ BESTBVNNIES ✳</span></div>
+        <section className="shop-section" id="shop" aria-labelledby="shop-title">
+          <div className="shop-heading"><div><p className="eyebrow">THE COLLECTION</p><h2 id="shop-title">Good taste.<br /><span>At your fingertips.</span></h2></div><p className="shop-note">Find your next favorite.<br />Make it your own.</p></div>
+          <div className="catalog-bar"><span>THE SHOP</span><span aria-live="polite">{catalog.status === 'ready' ? `${catalog.data.products.length} ${catalog.data.products.length === 1 ? 'product' : 'products'}` : 'THE BESTBVNNIES COLLECTION'}</span></div>
+          {catalog.status === 'loading' && <div className="catalog-message" role="status"><span className="state-symbol" aria-hidden="true">✳</span><h3>Finding your next favorites…</h3><p>Loading the collection.</p></div>}
+          {catalog.status === 'error' && <div className="catalog-message" role="alert"><span className="state-symbol" aria-hidden="true">↻</span><h3>A little interruption.</h3><p>We couldn’t load the collection. Please try again in a moment.</p><button className="button" onClick={() => { setCatalog({ status: 'loading' }); setAttempt((value) => value + 1) }}>Try again <span aria-hidden="true">↗</span></button></div>}
+          {catalog.status === 'ready' && <>
+            {catalog.data.inventoryUnavailable && <p className="inventory-notice" role="status">Stock information is temporarily unavailable. Product details are still available to browse.</p>}
+            {catalog.data.products.length === 0 ? <div className="catalog-message"><span className="state-symbol" aria-hidden="true">✳</span><h3>Room for something good.</h3><p>There are no products in the collection right now. Check back soon.</p></div> :
+              <div className="product-grid">{catalog.data.products.map((product, index) => <ProductCard key={product.id} product={product} index={index} />)}</div>}
+          </>}
+        </section>
+      </main>
+      <footer className="site-footer"><a className="footer-wordmark" href="#top">bestbvnnies</a><p>A little extra. Always.</p><a href="#top">Back to top ↑</a></footer>
+    </>
   )
 }
 

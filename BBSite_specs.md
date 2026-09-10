@@ -10,8 +10,10 @@
     - Secondary brand color used to outline/boarder art designs
 - Accent Green: AFFE79
     - Bright green used to accent/fill primary elements
-- Accent Light Blue: AFFE79
+- Accent Light Blue: 00A8A0
     - Semi-bright blue, used to accent/fill secondary elements
+- Secondary Backing Pink: FFB3B3
+    - Where needed/applicable, gives a backing color for secondary views where Primary Pink would not be suited. Shouldn't appear layered with Primary Pink.
     
 
 ## Fonts
@@ -22,6 +24,62 @@
     - Used for second elements
 - Faricy New Regular
     - Used for body elements
+    
+    
+## Brand Assets
+
+All official brand assets are located in `src/assets/branding/`.
+Not all assets must be used and should not be over-used, but serve as brand-native imagery where applicable.
+
+### Primary Wordmark
+`bestbvnnies-wordmark.svg`
+The words "Best Bvnnies" written in Primary Pink, outlined in Boarder/Secondary Deep Blue and then outlined once more in Primary Pink.
+Official bestbvnnies wordmark.
+
+### Bunny Marks
+Brand bunny logo
+`bunny-outline.svg`
+Outline of logo with no fill, outlined in Boarder/Secondary Deep Blue.
+
+`bunny-pink.svg`
+Outline of logo with color fill, outlined in Boarder/Secondary Deep Blue and filled with Primary Pink.
+
+`bunny-green.svg`
+Outline of logo with color fill, outlined in Boarder/Secondary Deep Blue and filled with Accent Green.
+
+### Utility Icons
+Circular icon images boardered in a Boarder/Secondary Deep Blue square. 
+Can be used for category representation.
+
+`icon-logo.svg`
+Contains an image of a secondary design of the brand bunny.
+Main color/s: Primary Pink, Accent Green
+Used for: Generic icon that represents the company
+
+`icon-mentions.svg`
+Contains an image of a bunny tail.
+Main color/s: Accent Light Blue
+Used for: Third party mentions of the company
+
+`icon-policies.svg`
+Contains an image of piercing.
+Main color/s: Accent Green
+Used for: Brand policy information
+
+`icon-calendar.svg`
+Contains an image of calendar.
+Main color/s: Primary Pink
+Used for: Scheduling information
+
+`icon-pressons.svg`
+Contains an image of a bunny paw.
+Main color/s: Accent Light Blue
+Used for: Nail Press-On mention
+
+`icon-collab.svg`
+Contains an image of a two rabbit paws holding hands
+Main color/s: Accent Green
+Used for: Brand collaborations
 
 ## Aesthetic direction
 
