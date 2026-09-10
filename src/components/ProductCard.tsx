@@ -1,14 +1,8 @@
 import { useState } from 'react'
-import type { Inventory, Money, Product } from '../../shared/products'
-
-function formatPrice(price: Money | null): string {
-  if (!price) return 'Price unavailable'
-  try {
-    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: price.currency })
-    const digits = formatter.resolvedOptions().maximumFractionDigits ?? 2
-    return formatter.format(price.amount / 10 ** digits)
-  } catch { return 'Price unavailable' }
-}
+import type { Inventory, Product } from '../../shared/products'
+import type { CartItem } from '../../shared/checkout'
+import { MAX_CART_LINES, MAX_QUANTITY } from '../../shared/checkout'
+import { formatPrice } from '../money'
 
 function stockLabel(inventory: Inventory): string {
   switch (inventory.status) {
@@ -19,11 +13,14 @@ function stockLabel(inventory: Inventory): string {
   }
 }
 
-export function ProductCard({ product, index }: { product: Product; index: number }) {
+export function ProductCard({ product, index, items, onAdd }: { product: Product; index: number; items: CartItem[]; onAdd: (id: string) => void }) {
   const [selectedId, setSelectedId] = useState(product.variations[0].id)
   const variation = product.variations.find((entry) => entry.id === selectedId) ?? product.variations[0]
   const [failedImage, setFailedImage] = useState<string | null>(null)
   const image = variation.imageUrl ?? product.imageUrl
+  const inCart = items.find((item) => item.variationId === variation.id)?.quantity ?? 0
+  const limit = variation.inventory.status === 'in_stock' ? Math.min(MAX_QUANTITY, Math.floor(variation.inventory.count)) : MAX_QUANTITY
+  const canAdd = !!variation.price && ['in_stock', 'untracked'].includes(variation.inventory.status) && inCart < limit && (inCart > 0 || items.length < MAX_CART_LINES)
   return (
     <article className="product">
       <div className="product-visual">
@@ -49,6 +46,7 @@ export function ProductCard({ product, index }: { product: Product; index: numbe
           </label>
         ) : variation.name && variation.name !== 'Regular' && <p className="variation-name">{variation.name}</p>}
         <p className={`stock stock--${variation.inventory.status}`}><span aria-hidden="true">●</span> {stockLabel(variation.inventory)}</p>
+        <button className="button add-button" disabled={!canAdd} onClick={() => onAdd(variation.id)} aria-label={`Add ${product.name}${variation.name && variation.name !== 'Regular' ? ` — ${variation.name}` : ''} to bag`}>{canAdd ? inCart ? `Add another · ${inCart} in bag` : 'Add to bag +' : inCart >= limit ? 'Available quantity in bag' : 'Currently unavailable'}</button>
       </div>
     </article>
   )

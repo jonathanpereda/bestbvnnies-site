@@ -28,7 +28,7 @@
     
 ## Brand Assets
 
-All official brand assets are located in `src/assets/branding/`.
+All official brand assets are located in `src/assets/`.
 Not all assets must be used and should not be over-used, but serve as brand-native imagery where applicable.
 
 ### Primary Wordmark
