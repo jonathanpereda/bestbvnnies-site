@@ -129,3 +129,35 @@ h3 { font-size: 1.25rem; line-height: 1.3; font-weight: 700; overflow-wrap: anyw
 @media (min-width: 1050px) {
   .cart-layout { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 3rem; }
 }
+
+.cart-estimate { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; font-size: .9rem; }
+.checkout-fields { border: 0; margin: 1.5rem 0 0; padding: 0; min-width: 0; }
+.checkout-fields legend { font-weight: 700; padding: 0; margin-bottom: 1rem; }
+.checkout-fields label { display: grid; gap: .45rem; margin-block: .8rem; font-size: .9rem; }
+.checkout-fields input:not([type=radio]) { font: inherit; width: 100%; min-width: 0; min-height: 44px; padding: .7rem; color: var(--color-blue); background: white; border: var(--border); border-radius: 0; }
+.fulfillment-options label { display: flex; align-items: center; gap: .6rem; padding: .8rem; border: var(--border); }
+.fulfillment-options input { accent-color: var(--color-blue); width: 1.15rem; height: 1.15rem; }
+.pickup-info { padding: 1rem; border: var(--border); background: var(--color-green); font-size: .85rem; line-height: 1.6; }
+.pickup-info address { font-style: normal; margin-top: .5rem; }
+.pickup-info details { margin-block: .8rem; }
+.pickup-info summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; text-decoration: underline; }
+.pickup-info dl { margin: 0; }
+.pickup-info dl div { display: flex; justify-content: space-between; gap: .5rem; }
+.pickup-info dd { margin: 0; }
+.tip-options { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+.tip-options button { border: var(--border); padding: .65rem .8rem; min-height: 44px; background: white; }
+.tip-options button[aria-pressed=true] { background: var(--color-green); box-shadow: 2px 2px 0 var(--color-blue); }
+.payment-form { margin-top: 1.75rem; padding-top: 1.5rem; border-top: var(--border); }
+.payment-form h3 { margin-bottom: .8rem; }
+#square-card { margin-top: 1rem; min-height: 90px; }
+.sandbox-note { background: var(--color-green); padding: .6rem; font-size: .85rem; font-weight: 700; }
+.apple-pay-button { display: block; width: 100%; min-height: 48px; margin-top: 1rem; -webkit-appearance: -apple-pay-button; -apple-pay-button-type: pay; -apple-pay-button-style: black; }
+.google-pay-container { margin-top: 1rem; }
+.wallet-hidden { display: none; }
+.payment-input-busy { pointer-events: none; opacity: .6; }
+.recovery-panel { line-height: 1.6; }
+.recovery-panel p { margin-block: 1rem; overflow-wrap: anywhere; }
+.recovery-panel button { display: block; }
+.order-confirmation { border: var(--border); padding: 2rem; background: white; max-width: 42rem; }
+.order-confirmation p { margin-top: 1rem; line-height: 1.6; overflow-wrap: anywhere; }
+@media (min-width: 480px) { .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; } }

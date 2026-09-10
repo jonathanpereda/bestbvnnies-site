@@ -10,6 +10,7 @@ export function useCart() {
   }, [items])
   return {
     items,
+    clear: () => { setItems([]); try { localStorage.setItem(CART_KEY, '[]') } catch { /* In-memory cart is cleared. */ } },
     count: items.reduce((sum, item) => sum + item.quantity, 0),
     changeQuantity: (id: string, quantity: number) => setItems((current) => setQuantity(current, id, quantity)),
     add: (id: string) => setItems((current) => setQuantity(current, id, (current.find((item) => item.variationId === id)?.quantity ?? 0) + 1)),

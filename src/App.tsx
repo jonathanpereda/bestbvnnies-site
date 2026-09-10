@@ -67,7 +67,7 @@ function App() {
         </section>
       </main>
       <footer className="site-footer"><a className="footer-wordmark" href="#top"><img src={wordmark} alt="bestbvnnies" /></a><p>A little extra. Always.</p><a href="#top">Back to top ↑</a></footer>
-      {cartOpen && <CartPanel items={cart.items} products={catalog.status === 'ready' ? catalog.data.products : []} catalogReady={catalog.status === 'ready'} onQuantity={cart.changeQuantity} onClose={() => setCartOpen(false)} onValidated={applyQuote} />}
+      {cartOpen && <CartPanel items={cart.items} products={catalog.status === 'ready' ? catalog.data.products : []} catalogReady={catalog.status === 'ready'} onQuantity={cart.changeQuantity} onClose={() => setCartOpen(false)} onValidated={applyQuote} onPurchased={cart.clear} />}
     </>
   )
 }

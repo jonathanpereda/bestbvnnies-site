@@ -44,7 +44,7 @@ test('reject malformed carts, extra data, duplicates, excessive lines, and inval
 
 test('current location price is server-authoritative and CalculateOrder never creates a permanent order', async () => {
   const { client, calls } = fixture()
-  const quote = await getCheckoutQuote(cart, env, client)
+  const quote = await getCheckoutQuote({ ...cart, fulfillment: 'pickup', tipCents: 0 }, env, client)
   assert.deepEqual(calls.at(-1).body.order.line_items, [{ uid: 'line-0', catalog_object_id: 'v', quantity: '2', base_price_money: money(3000) }])
   assert.equal(quote.total, 6000)
   assert.equal(quote.lines[0].unitPrice.amount, 3000)
@@ -60,35 +60,35 @@ test('current location price is server-authoritative and CalculateOrder never cr
 test('removed, archived, non-sellable, deleted and outside-category variations are rejected before calculation', async () => {
   for (const config of [{ item: { variations: [] } }, { item: { is_archived: true } }, { variation: { sellable: false } }, { item: { variations: [{ id: 'v', type: 'ITEM_VARIATION', is_deleted: true }] } }, { item: { categories: [{ id: 'private' }] } }]) {
     const { client, calls } = fixture(config)
-    await assert.rejects(getCheckoutQuote(cart, env, client), (e) => e.status === 409 && e.issues[0].code === 'unavailable')
+    await assert.rejects(getCheckoutQuote({ ...cart, fulfillment: 'pickup', tipCents: 0 }, env, client), (e) => e.status === 409 && e.issues[0].code === 'unavailable')
     assert.equal(calls.some(({ path }) => path.includes('/orders')), false)
   }
 })
 
 test('missing or variable prices cannot be quoted', async () => {
   const { client } = fixture({ variation: { pricing_type: 'VARIABLE_PRICING' } })
-  await assert.rejects(getCheckoutQuote(cart, env, client), (e) => e.issues[0].code === 'price_unavailable')
+  await assert.rejects(getCheckoutQuote({ ...cart, fulfillment: 'pickup', tipCents: 0 }, env, client), (e) => e.issues[0].code === 'price_unavailable')
 })
 
 test('tracked insufficient stock returns a safe whole-number quantity suggestion', async () => {
   for (const count of ['1', '1.5', '0', '-3']) {
     const { client } = fixture({ count })
-    await assert.rejects(getCheckoutQuote(cart, env, client), (e) => e.status === 409 && e.issues[0].code === 'insufficient_stock' && e.issues[0].availableQuantity === Math.max(0, Math.floor(Number(count))))
+    await assert.rejects(getCheckoutQuote({ ...cart, fulfillment: 'pickup', tipCents: 0 }, env, client), (e) => e.status === 409 && e.issues[0].code === 'insufficient_stock' && e.issues[0].availableQuantity === Math.max(0, Math.floor(Number(count))))
   }
 })
 
 test('untracked stock permits quoting but sold-out override still blocks', async () => {
   const { client, calls } = fixture({ tracked: false })
-  assert.equal((await getCheckoutQuote(cart, env, client)).lines[0].inventory.status, 'untracked')
+  assert.equal((await getCheckoutQuote({ ...cart, fulfillment: 'pickup', tipCents: 0 }, env, client)).lines[0].inventory.status, 'untracked')
   assert.equal(calls.some(({ path }) => path.includes('/inventory/')), false)
   const soldOut = fixture({ tracked: false, variation: { location_overrides: [{ location_id: 'location', sold_out: true }] } })
-  await assert.rejects(getCheckoutQuote(cart, env, soldOut.client), (e) => e.issues[0].code === 'insufficient_stock')
+  await assert.rejects(getCheckoutQuote({ ...cart, fulfillment: 'pickup', tipCents: 0 }, env, soldOut.client), (e) => e.issues[0].code === 'insufficient_stock')
 })
 
 test('unknown counts and inventory network failures block checkout rather than assume available', async () => {
   for (const config of [{ count: null }, { count: 'invalid' }, { inventoryFails: true }]) {
     const { client, calls } = fixture(config)
-    await assert.rejects(getCheckoutQuote(cart, env, client), (e) => e.issues[0].code === 'stock_unknown')
+    await assert.rejects(getCheckoutQuote({ ...cart, fulfillment: 'pickup', tipCents: 0 }, env, client), (e) => e.issues[0].code === 'stock_unknown')
     assert.equal(calls.some(({ path }) => path.includes('/orders')), false)
   }
 })
@@ -102,7 +102,7 @@ test('maps additive and inclusive tax with discounts without double counting inc
       Object.assign(order.line_items[0], { total_money: order.total_money, total_tax_money: order.total_tax_money, total_discount_money: order.total_discount_money })
       return { order, ignored_secret: 'secret-fixture' }
     } })
-    const quote = await getCheckoutQuote(cart, env, client)
+    const quote = await getCheckoutQuote({ ...cart, fulfillment: 'pickup', tipCents: 0 }, env, client)
     assert.equal(quote.subtotal, total + 600 - 540)
     assert.equal(quote.subtotal - quote.discount + quote.tax, quote.total)
     assert.equal(quote.lines[0].total, total)
@@ -113,7 +113,7 @@ test('maps additive and inclusive tax with discounts without double counting inc
 
 test('unexpected Square response shapes, currencies and totals fail safely', async () => {
   for (const mutate of [() => ({}), () => ({ errors: [{ detail: 'secret-fixture' }] }), (order) => ({ order: { ...order, line_items: [] } }), (order) => ({ order: { ...order, total_money: money(6000, 'CAD') } }), (order) => ({ order: { ...order, total_money: money(1) } }), (order) => { order.line_items[0].catalog_object_id = 'wrong'; return { order } }, (order) => { order.line_items[0].base_price_money.amount = 1; return { order } }, (order) => { order.total_service_charge_money = money(100); return { order } }, () => { throw new Error('secret-fixture') }]) {
-    await assert.rejects(getCheckoutQuote(cart, env, fixture({ calculate: mutate }).client), (e) => e instanceof SquareError && e.status === 502 && !e.message.includes('secret-fixture'))
+    await assert.rejects(getCheckoutQuote({ ...cart, fulfillment: 'pickup', tipCents: 0 }, env, fixture({ calculate: mutate }).client), (e) => e instanceof SquareError && e.status === 502 && !e.message.includes('secret-fixture'))
   }
 })
 
@@ -124,8 +124,8 @@ test('quote route enforces POST, JSON, valid JSON and actual request byte limit'
   assert.equal(method.headers.get('Allow'), 'POST')
   assert.equal((await handleApi(request('{}', { 'Content-Type': 'text/plain' }), {})).status, 415)
   for (const body of ['{', '{}', JSON.stringify({ items: [{ ...cart.items[0], amount: 1 }] })]) assert.equal((await handleApi(request(body), {})).status, 400)
-  assert.equal((await handleApi(request(' '.repeat(32769)), {})).status, 413)
-  const unconfigured = await handleApi(request(JSON.stringify(cart)), {})
+  assert.equal((await handleApi(request(' '.repeat(131073)), {})).status, 413)
+  const unconfigured = await handleApi(request(JSON.stringify({ ...cart, fulfillment: 'pickup', tipCents: 0 })), {})
   assert.equal(unconfigured.status, 500)
   assert.equal(unconfigured.headers.get('Cache-Control'), 'no-store')
 })

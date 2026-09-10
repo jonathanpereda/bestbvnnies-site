@@ -1,110 +1,116 @@
 # bestbvnnies
 
-A branded React + TypeScript shop, built with Vite and served by a Cloudflare Worker with Static Assets. Product information comes from Square Catalog and Inventory. Square remains the system of record; this single-seller integration uses a server-side personal access token, not OAuth.
+React + TypeScript + Vite, served by a Cloudflare Worker with Static Assets. Square owns catalog, inventory, taxes, orders and payments. This is a single-seller integration using a server-only personal access token, without OAuth or a database.
 
-The site includes product browsing, a saved client-side cart, and a Square-validated checkout review. It does not collect payments or create orders. No appointments, waivers, webhooks, or database are implemented.
+Implemented: branded catalog, persisted cart, shipping/local pickup, customer details, Square-calculated review, optional tipping, Square Web Payments SDK card/wallet integration, order-linked payment and recovery. Appointments, deposits, waivers, saved cards, subscriptions and webhooks are not implemented. Nothing has been deployed.
 
 ## Local setup
 
-Use Node.js 22.13+ (the tests and category utility use built-in TypeScript stripping).
+Use Node.js 22.13+; tests use Node's built-in test runner and TypeScript stripping.
 
 ```sh
 npm install
-cp .dev.vars.example .dev.vars
+cp .dev.vars.example .dev.vars # only if .dev.vars does not already exist
+npm run dev
 ```
 
-If `.dev.vars` already exists, keep it and add only any missing configuration. Fill in:
+Fill in the local configuration; restart development after changes:
 
-| Variable | Value |
+| Variable | Local value |
 | --- | --- |
-| `SQUARE_ACCESS_TOKEN` | Square **Sandbox personal access token**, server-only |
-| `SQUARE_APPLICATION_ID` | Sandbox application ID; reserved, not used by catalog requests |
-| `SQUARE_LOCATION_ID` | Sandbox location whose prices, availability, and inventory to display |
-| `SQUARE_ENVIRONMENT` | `sandbox` for current development |
-| `SQUARE_STOREFRONT_CATEGORY_ID` | Non-secret ID of the Square category to expose in the shop |
+| `SQUARE_ACCESS_TOKEN` | Sandbox personal access token; server-only |
+| `SQUARE_APPLICATION_ID` | Matching Sandbox application ID |
+| `SQUARE_LOCATION_ID` | Matching Sandbox location |
+| `SQUARE_ENVIRONMENT` | `sandbox` |
+| `SQUARE_STOREFRONT_CATEGORY_ID` | Non-secret storefront category ID |
+| `SHIPPING_FLAT_RATE_CENTS` | `600` (USD cents) |
+| `CHECKOUT_TOKEN_SECRET` | Random server-only secret of at least 32 characters |
 
-**Never commit `.dev.vars` or real credentials.** It is ignored by Git. Never put access tokens in React, a `VITE_*` variable, API responses, or logs. The example file contains empty placeholders only. Build output is also ignored and can contain a Worker-side copy of `.dev.vars` for local preview; never publish the entire `dist` directory as public assets. The public asset directory is `dist/client`.
+The local shipping setting and a random checkout-token secret were added during this implementation. Existing Square credentials were preserved. For another environment, generate a distinct cryptographically random secret (for example, `openssl rand -base64 48`) and keep it stable during active checkouts. Token encryption uses Web Crypto AES-GCM with environment/location/purpose binding. Rotating this secret invalidates outstanding browser recovery references; reconcile unresolved purchases in Square before rotation.
 
-### Choose the storefront category
+**Never commit `.dev.vars`, credentials, payment tokens, or buyer data.** Do not use `VITE_*` for server secrets. Build output is ignored and may contain a private Worker-side `.dev.vars` copy; never publish the entire `dist` directory as public assets. Public assets are in `dist/client`.
 
-Keep storefront products in one dedicated category in Square (the existing Sandbox category is named **Press-On Nails**). Run the read-only helper:
+The SDK requires a secure context and CSP. Card entry was tested on localhost; production requires HTTPS. `public/_headers` supplies the built static asset CSP and security headers. Vite reads that policy and adds development-only inline-script/HMR allowances for React refresh. Apple Pay cannot be tested on localhost.
+
+## Square owner workflow
+
+Keep storefront products in the configured Square category (the existing Sandbox category is **Press-On Nails**). To find the ID:
 
 ```sh
 npm run square:categories
 ```
 
-It reads local Sandbox credentials without displaying them, follows pagination, and prints category names and IDs only. Copy the intended category's `id` into `SQUARE_STOREFRONT_CATEGORY_ID` in `.dev.vars`. Alternatively use Square API Explorer in Sandbox mode: `GET /v2/catalog/list?types=CATEGORY`, following any cursor.
+The helper prints only category names and IDs. The owner can change products, variations, prices, category membership, stock and applicable catalog taxes in Square without editing React. Direct category membership is used; nested categories are not implicitly included. Renaming the category is fine; recreating it requires a new configured category ID.
 
-Do not use an item or variation ID here. Renaming the category is fine; deleting and recreating it requires updating the configured ID. The owner adds/removes products from the storefront by assigning/removing this category in Square, without code edits. Direct category membership is used; nested categories are not implicitly included. Only regular merchandise items enabled at the configured location are shown; appointment services are excluded.
+Products use location prices and tracking overrides. Deleted, archived, non-sellable, unavailable-at-location and non-merchandise objects are excluded. Pagination is followed. Missing images get a branded placeholder. Missing/variable prices cannot be purchased. Untracked stock is deliberately allowed; tracked unknown stock blocks checkout; active sold-out overrides and insufficient quantities block checkout.
 
-```sh
-npm run dev
-```
+Paid SHIPMENT/PICKUP orders include recipient contact details and the shipping address when applicable. Square documents that paid fulfillment orders appear in its Order Manager. The owner manages fulfillment through Square. A paid order can remain `OPEN` with a `PROPOSED` fulfillment until the seller processes it; `Payment.status: COMPLETED` is the capture confirmation. This application does not mark goods shipped/picked up merely because payment succeeded, or create a separate seller/admin interface. Recipient data is stored on the Square fulfillment; a separate Customers API profile is not required by this flow and is not explicitly created.
 
-Open Vite's printed local URL. Restart after changing `.dev.vars`. No application cache is used, so refreshing the page retrieves current Square data (subject to Square's own propagation).
+## Checkout contract
 
-## API and structure
+All privileged Square REST calls use `worker/square/client.ts`, including its pinned `Square-Version: 2026-08-19`, environment selection, timeouts and sanitized errors. The access token never leaves the Worker for the browser.
 
-- `GET /api/health`: Worker health; no Square configuration required.
-- `GET /api/square/location`: Sandbox-only connectivity check, available only during Vite development. Returns 404 in built preview/deployments.
-- `GET /api/products`: category-scoped, location-aware catalog. Returns application-facing `Product[]`, variations, optional images/descriptions, prices, inventory states, and an `inventoryUnavailable` flag. No raw Square objects are returned.
-- `POST /api/checkout/quote`: validates the cart against current Square data and calls CalculateOrder without creating an order. See the checkout contract below.
-- Known endpoints reject incorrect methods with 405 and the appropriate `Allow` header. Configuration errors return a sanitized 500; upstream/network errors return a sanitized 502. Each Square request has a 10-second timeout.
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/health` | Worker health |
+| `GET /api/square/location` | Vite-development-only Sandbox connectivity check |
+| `GET /api/products` | Category/location-scoped application-facing catalog |
+| `GET /api/checkout/config` | Public SDK app/location IDs, environment, SDK URL, shipping and tip options |
+| `POST /api/checkout/quote` | Fresh catalog/inventory checks and Square CalculateOrder preview; creates no order |
+| `POST /api/checkout/prepare` | Validates buyer details and SDK source token; issues an encrypted recovery token; creates no order/payment |
+| `POST /api/checkout/pay` | Recovers or creates the authoritative order, checks stock again, and makes its linked Square payment |
+| `POST /api/checkout/status` | Read-only recovery of a known attempt; never creates an order or initiates a charge |
 
-`worker/square/client.ts` centralizes REST authentication, API version (`2026-08-19`), timeouts, sanitized errors, and pagination. It chooses Sandbox or production URLs using `SQUARE_ENVIRONMENT`, rejecting all other values. Production has **not** been enabled or tested. When separately authorized, production will use its matching personal token as a Cloudflare secret and matching location/category configuration. `.dev.vars` does not provision deployed secrets.
+Routes enforce methods with 405/`Allow`. Checkout bodies require JSON and are bounded to 128 KiB. Cart validation accepts 1–100 distinct variations with whole quantities 1–99 and rejects duplicates, unknown request fields and client-supplied monetary/order fields. These limits are defensive implementation bounds, not Square stock quantities.
 
-`worker/products.ts` assembles the catalog, and `shared/products.ts` defines the frontend contract. The storefront uses category, location, and non-archived filters, defensively excludes deleted/non-sellable/unavailable variations, and omits items with no usable variations. `sellable: false` is excluded; omitted legacy flags are accepted. Images are retrieved in batches and HTTPS URLs are allowlisted by protocol; missing/deleted/invalid or browser-failed images use a branded text placeholder. Descriptions are rendered as text, never injected HTML.
-
-### Price and inventory behavior
-
-- Prices use the location override when present. Amounts remain in Square currency minor units until display. Missing/variable prices show **Price unavailable**, never an invented price.
-- Inventory tracking uses the location override, falling back to the global flag. If both are absent, it is untracked.
-- `in_stock`: a positive reported count at this location.
-- `out_of_stock`: zero/negative count, or an active Square sold-out override (shown as zero).
-- `untracked`: tracking is disabled; this is **not** an assertion of availability.
-- `unknown`: tracking is enabled but the count is missing/invalid or inventory lookup failed; never silently treated as zero.
-- A stock API failure preserves catalog browsing and marks stock unavailable. A catalog/image-batch API failure returns a retryable shop error.
-- Stock is a snapshot, not a reservation. Quote requests revalidate it; the future payment flow must revalidate it again.
-
-Catalog and stock reads do not require a paid Appointments subscription. The APIs used require catalog/inventory read access; Appointments paid-tier behavior is outside this chunk.
-
-Official references: [Catalog search](https://developer.squareup.com/reference/square/catalog-api/search-catalog-items), [Inventory counts](https://developer.squareup.com/reference/square/inventory-api/batch-retrieve-inventory-counts), [location overrides](https://developer.squareup.com/reference/square/objects/ItemVariationLocationOverrides), [Catalog object locations](https://developer.squareup.com/reference/square/objects/CatalogObject).
-
-## Brand foundation
-
-`BBSite_specs.md` is the source of truth. Shared color, type, spacing, border, and layout tokens live in `src/index.css`; the current editorial/shop/cart presentation is in `src/App.css`. The supplied official wordmark is used in the header, footer, and cart. The press-on utility icon identifies the collection; unrelated utility icons are not used. SVG files are imported directly, without modification. The assets currently live directly in `src/assets/`, rather than the specification's `src/assets/branding/` path.
-
-- **Bungee Regular** and **Roboto** load from Google Fonts with `display=swap` and system fallbacks. No font package dependency is added.
-- **Faricy New Regular** has no licensed asset or configured Adobe Fonts web project in this repository. Body text intentionally falls back to Roboto until the owner supplies a licensed webfont or Adobe kit. See [Faricy New on Adobe Fonts](https://fonts.adobe.com/fonts/faricy-new).
-- Corrected accent light blue is `#00A8A0`; green remains `#AFFE79`. Secondary backing pink `#FFB3B3` is used for the opaque cart/review view, without layering it over the primary pink shop. Original SVG colors and aspect ratios are preserved, even where their embedded colors differ slightly from the CSS palette.
-
-## Cart and checkout review
-
-No new configuration or dependencies are required beyond the existing Sandbox location/category/token. React owns the cart; `localStorage` key `bestbvnnies.cart.v1` stores **only variation IDs and quantities**, never prices. Missing/blocked storage falls back to an in-memory cart. Product details are reconstructed from the API on refresh. The native modal dialog supports keyboard focus containment, Escape, and return to the opening control. Different variations are separate cart lines.
-
-The request contract is:
+Example quote request:
 
 ```json
-{"items":[{"variationId":"SQUARE_VARIATION_ID","quantity":1}]}
+{
+  "items": [{ "variationId": "SQUARE_VARIATION_ID", "quantity": 1 }],
+  "fulfillment": "shipping",
+  "tipCents": 200
+}
 ```
 
-The Worker rejects extra fields (including client prices), duplicate variations, invalid IDs/quantities, more than 100 lines, quantities outside 1–99, and bodies over 32 KiB. These are defensive implementation limits, not inventory or business purchase policies. Requests require `Content-Type: application/json`.
+A quote contains integer amounts, validated lines, currency, merchandise subtotal, discount, shipping, tax, order total, tip, payable total and an opaque `quoteToken`. Prices and availability are read fresh. Quote freshness is 15 minutes; changing cart, fulfillment, buyer details or tip invalidates the displayed review. The browser must obtain a new authoritative total before payment.
 
-Each quote reads the current category/location-filtered catalog and inventory through the existing product module. Deleted, archived, non-sellable, out-of-category, and missing/variable-price variations cannot be quoted. Insufficient tracked stock returns a 409 with per-variation issues and a suggested available quantity. Unknown tracked stock blocks review until it can be checked. Untracked stock is permitted deliberately, but an active sold-out override still blocks it. The customer explicitly applies quantity reductions or removals; successful reviews update the displayed prices/stock and announce price changes.
+Shipping uses the Worker-configured $6 fee as a Square `OrderServiceCharge` in `SUBTOTAL_PHASE`, with `taxable: true` to permit applicable Square taxes. Pickup has no service charge. Square calculates taxes and eligible catalog discount rules using `auto_apply_taxes` and `auto_apply_discounts`. There is no custom tax rate or tax computation. A saved discount without an applicable pricing rule is not automatically applied. The UI maps Square's returned amounts, separating inclusive tax to avoid double counting.
 
-`worker/square/orders.ts` calls **CalculateOrder**, using catalog variation references and freshly retrieved location prices. `auto_apply_taxes` and `auto_apply_discounts` let Square apply catalog taxes and eligible catalog pricing rules; the browser cannot select taxes or discounts. An arbitrary saved discount without an applicable pricing rule is not automatically applied. The returned `CheckoutQuote` contains only validated line details, integer money amounts, currency, totals, and calculation time. Subtotal is before discounts and excludes tax: `total + discount - tax`, so inclusive taxes are not counted twice. The estimated cart subtotal can include catalog-inclusive taxes; the validated breakdown separates them.
+Shipping charges can receive applicable order-level taxes; automatic item/catalog taxes do not necessarily establish shipping taxability. Confirm the seller's shipping tax setup before production. Current Sandbox products return $0 tax. No shipping-country restriction was specified, so the form accepts validated country codes with US prefilled and applies the same configured fee; confirm geographic coverage, state/region/postal requirements and international costs before production.
 
-The UI invalidates a quote when quantities change, ignores aborted responses, supports retry, and clearly states that payment is unavailable. Opening a cart never creates an order. CalculateOrder creates no order ID, reserves no stock, and cannot be used as a trusted payment authorization. Quotes are not persisted.
+Pickup details and informational hours are centralized in `src/siteConfig.ts`. Square uses `PICKUP` with `schedule_type: ASAP`, without a requested pickup time, artificial preparation promise or time-slot system. Buyers are told to contact the shop to confirm readiness and see the supplied address, contact details and hours before purchase.
 
-### Before payments
+Tips default to zero. Suggestions are $2/$5/$10; custom tips must be integer cents from 0 through $100. The Worker validates this bound. `CreatePayment.amount_money` equals the authoritative order total **excluding tip**; `tip_money` is additional. The buyer sees the combined payable total before tokenization. No `Order.tip_money` field is written.
 
-- Revalidate server-side immediately before creating/paying an order. Never accept a browser quote total as authoritative. Define idempotency, order/payment failure recovery, and stock-race handling; neither this inventory read nor CalculateOrder reserves stock.
-- Decide shipping versus pickup, fulfillment costs and address-dependent tax requirements. Current totals cover merchandise and Square catalog taxes/eligible discounts only. No fulfillment cost, tips, modifiers, customer-specific discount eligibility, or loyalty redemptions are included. Quantities currently represent whole merchandise units.
-- Verify actual seller tax configuration, inclusive taxes, and intended automatic discount rules in Sandbox and later production. The existing three Sandbox products calculated zero tax and zero discount; tax/discount response mapping is covered by mocked tests, not a changed seller catalog.
-- CalculateOrder is currently documented as **Beta**. CreateOrder is intentionally deferred; that future endpoint creates a persistent order and supports an idempotency key. No paid Appointments tier is required for this merchandise quote flow; Appointments plan features are separate. Orders API usage with non-Square payment providers has a separate fee policy; the planned payment provider remains Square.
-- No production testing or deployment has occurred. The personal token stays server-side; this integration remains single-seller without OAuth.
+The final order uses catalog variation references and fresh Square prices, `OPEN` state, the chosen fulfillment, and the same Square pricing rules as the quote. Changes between review and payment require another review. Changes returned by CreateOrder itself are checked before payment. Zero-dollar orders are not currently supported by the card-payment path and require a separate future no-payment completion path.
 
-Official references: [CalculateOrder](https://developer.squareup.com/reference/square/orders/calculate-order), [CreateOrder](https://developer.squareup.com/reference/square/orders/create-order), [catalog taxes](https://developer.squareup.com/docs/orders-api/apply-taxes-and-discounts/auto-apply-taxes), [catalog discount rules](https://developer.squareup.com/docs/orders-api/apply-taxes-and-discounts/auto-apply-discounts), [OrderLineItem money fields](https://developer.squareup.com/reference/square/objects/OrderLineItem), [Orders API overview and fee note](https://developer.squareup.com/reference/square/orders).
+## Payment security and recovery
+
+The official Square SDK script is loaded on demand. Card fields live inside Square's iframe. `Card.tokenize(verificationDetails)` performs the current buyer-verification flow; app code never reads or sends PAN/CVV. Apple Pay and Google Pay use the SDK's payment request/tokenization and wallet buyer verification, and reuse the same Worker purchasing flow. Unsupported wallets are omitted while card remains available.
+
+The final button performs these steps:
+
+1. Square tokenizes the payment source for the reviewed payable total.
+2. `/prepare` validates buyer/contact/address and seals the source, verification token and accepted checkout into an encrypted recovery reference. It has no Square write side effects.
+3. The browser saves that opaque reference in `sessionStorage` **before** calling `/pay`. If session storage is unavailable, payment is not submitted. Raw card details, raw source tokens and plain buyer/contact details are not persisted by the app.
+4. `/pay` uses the server-generated quote nonce for stable `ord-…` and `pay-…` idempotency keys and a `BB-…` Square order reference. The browser cannot choose Square order IDs, amounts or keys. A hashed source binding on the order prevents switching tokens within an attempt.
+5. The Worker looks up the attempt's Square order using a bounded-by-time, paginated order search. Completed payments are recovered before current stock checks, so a successful purchase can still be recognized when stock has subsequently fallen.
+6. For an unpaid attempt, the Worker revalidates catalog, totals and inventory, creates/reuses the order, checks inventory immediately before payment, and calls CreatePayment with `order_id`, authoritative amount, tip and `autocomplete: true`.
+
+Only a matching Square payment with `COMPLETED` status and the expected amount/currency/order/reference produces success and clears the cart. The confirmation includes the Square order identifier. No success is fabricated from an HTTP response alone.
+
+A definitive decline preserves the cart, contact information, fulfillment and tip; the unpaid order is canceled where possible. If cancellation fails, it can remain unpaid in Square. A fresh review/new card generates a new attempt after a definitive decline. Replaying the old attempt cannot become a new charge.
+
+An ambiguous API/network result keeps the recovery reference and blocks editing that checkout. **Check payment status** performs reads only; **Retry this same purchase** reuses the same idempotency keys/source. A lost order or payment response can be recovered without creating duplicate charges. No uncertain payment is automatically canceled. Existing attempts can be retried for up to 24 hours; older references remain status-checkable but never initiate a new charge. A prolonged unresolved/expired attempt needs seller reconciliation using the displayed reference. Session storage survives reload in the same tab, not closing the tab or switching browsers; retain the reference and check Square before restarting an uncertain purchase elsewhere.
+
+No shared inventory lock exists. Square stock can change between the final read and charge, and inventory updates have propagation delay. In Sandbox, a tracked purchase initially read five units and later four, while the paid fulfillment order remained open. This prevents claiming a reservation or zero oversell risk. The owner must keep tracked stock accurate and reconcile rare oversells; no database/reservation system was introduced.
+
+## Wallet setup before production
+
+- **Apple Pay:** register the HTTPS Sandbox hostname in the Square Developer Console's Sandbox Apple Pay settings, follow Square's domain-association file instructions, and serve the supplied file at `/.well-known/apple-developer-merchantid-domain-association` without alteration or SPA fallback. Test with a supported Safari/device/wallet. Localhost/HTTP is not supported. Repeat registration separately in Production for the real hostname, use matching production SDK/application/location configuration, and provision server tokens/secrets as Cloudflare secrets. Registration/terms acceptance and deployment were not performed.
+- **Google Pay:** test on a supported browser with a configured wallet over HTTPS; adhere to Google's required merchant/brand terms. The SDK attaches the Google Pay button only after successful initialization. The CSP allows its vendor origin and uses `Cross-Origin-Opener-Policy: same-origin-allow-popups`. Wallets were unavailable in the local browser test environment, so end-to-end wallet authorization remains a manual check.
+- Validate real seller taxes/discount rules (including shipping and inclusive taxes), fulfillment workflow, geographic coverage, SDK/SCA flows, failure recovery, monitoring and payment-endpoint abuse controls before enabling production. The Square Orders API currently marks CalculateOrder Beta. No paid Appointments tier is required for this merchandise checkout; Appointments subscription features are separate.
 
 ## Validation
 
@@ -114,6 +120,33 @@ npm run lint
 npm run build
 ```
 
-Tests use Node's built-in test runner with mocked Square responses, not live credentials. They cover filtering, pagination, price/inventory overrides, missing data, inventory outages, safe errors, environment selection, route restrictions, cart persistence/variation identity, strict quote requests, stock failures, current prices, inclusive/additive tax mapping, discounts, and malformed Square responses.
+Tests use Node's built-in runner and mocked Square APIs, without added dependencies. They cover the catalog/cart foundation plus fulfillment validation, shipping, tips, buyer/address validation, client-override rejection, current prices, inventory races, order/fulfillment mapping, returned taxes, payment results, encryption/tampering, errors, declines, idempotency and lost-response recovery.
 
-`npm run preview` builds and previews locally; `npm run deploy` builds and deploys to the authenticated Cloudflare account. Do not deploy against production Square until explicitly authorized. `npm run cf-typegen` regenerates Worker types after binding changes.
+Actual Sandbox validation used official test tokens and fictional buyer data:
+
+- SHIPMENT: $35 merchandise + $6 shipping + $2 tip = $43; completed payment linked to the correct fulfillment order.
+- PICKUP: $35, free pickup; completed linked payment.
+- Replaying both successful requests returned the same order/payment result.
+- Decline token returned a decline; replay stayed declined.
+- Browser card entry via Square's SDK completed a $35 pickup purchase and cleared the cart only after confirmed success.
+- Browser shipping decline preserved customer/address/cart details and allowed a fresh review.
+- Tracked stock eventually decreased from five to four after a paid Sandbox order; initial immediate reads were stale.
+- Desktop and 375px mobile layouts were checked. Apple Pay/Google Pay authorization was not available locally.
+
+Dashboard visibility was **not** directly inspected: automatic browser approval review blocked the Developer Console redirect to the production Square sign-in origin. Sandbox API retrieval confirmed the paid order/payment relationship, fulfillment type/state and recipient presence. Confirm the orders in the Sandbox Dashboard manually; no claim of visual Dashboard verification is made.
+
+`npm run preview` builds a local preview. `npm run deploy` is available but must not be run until deployment/production integration is explicitly authorized. The two existing lint warnings in generated `worker-configuration.d.ts` remain unrelated to this implementation.
+
+## Brand foundation
+
+`BBSite_specs.md` is the source of truth. Existing official SVGs in `src/assets/` are imported unchanged. Shared palette/type/spacing tokens live in `src/index.css`; the full-screen cart uses secondary pink without layering it over primary pink. Bungee and Roboto load from Google Fonts. Faricy New still requires a licensed webfont/Adobe kit; body text intentionally falls back to Roboto.
+
+## Official Square references
+
+- [Web Payments SDK quickstart](https://developer.squareup.com/docs/web-payments/quickstart/add-sdk-to-web-client) and [current card buyer verification](https://developer.squareup.com/docs/web-payments/take-card-payment)
+- [CalculateOrder](https://developer.squareup.com/reference/square/orders-api/calculate-order), [CreateOrder](https://developer.squareup.com/reference/square/orders/create-order), [CreatePayment](https://developer.squareup.com/reference/square/payments-api/CreatePayment)
+- [Order-linked payments and tips](https://developer.squareup.com/docs/payments-api/take-payments), [idempotency](https://developer.squareup.com/docs/build-basics/common-api-patterns/idempotency)
+- [Service charges](https://developer.squareup.com/reference/square/objects/OrderServiceCharge), [automatic catalog taxes](https://developer.squareup.com/docs/orders-api/apply-taxes-and-discounts/auto-apply-taxes)
+- [Pickup fulfillment](https://developer.squareup.com/reference/square/objects/OrderFulfillmentPickupDetails), [shipment fulfillment](https://developer.squareup.com/reference/square/objects/OrderFulfillmentShipmentDetails), [paid fulfillment visibility](https://developer.squareup.com/docs/orders-api/what-it-does)
+- [Apple Pay](https://developer.squareup.com/docs/web-payments/apple-pay), [Google Pay](https://developer.squareup.com/docs/web-payments/google-pay), [CSP requirements](https://developer.squareup.com/docs/web-payments/content-security-policy)
+- [Sandbox payment test values](https://developer.squareup.com/docs/devtools/sandbox/payments)

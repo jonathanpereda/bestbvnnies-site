@@ -5,15 +5,10 @@ import { createSquareClient } from './square/client.ts'
 import type { SquareClient, SquareEnv } from './square/client.ts'
 import { calculateQuote } from './square/orders.ts'
 
-export class CheckoutError extends Error {
-  status: number
-  issues?: CartIssue[]
-  constructor(status: number, message: string, issues?: CartIssue[]) {
-    super(message)
-    this.status = status
-    this.issues = issues
-  }
-}
+import { CheckoutError } from './checkout-errors.ts'
+export { CheckoutError } from './checkout-errors.ts'
+import { fulfillmentMethod, shippingRate, keys, record } from './fulfillment.ts'
+import { MAX_TIP_CENTS } from '../shared/checkout.ts'
 
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value)
 
@@ -33,7 +28,7 @@ export function parseCart(value: unknown): QuoteRequest {
   return { items }
 }
 
-export async function readCart(request: Request): Promise<QuoteRequest> {
+export async function readJson(request: Request): Promise<unknown> {
   if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
     throw new CheckoutError(415, 'Send the cart as JSON.')
   }
@@ -47,7 +42,7 @@ export async function readCart(request: Request): Promise<QuoteRequest> {
       const { done, value } = await reader.read()
       if (done) break
       size += value.byteLength
-      if (size > 32_768) {
+      if (size > 131_072) {
         await reader.cancel()
         throw new CheckoutError(413, 'The cart request is too large.')
       }
@@ -56,15 +51,27 @@ export async function readCart(request: Request): Promise<QuoteRequest> {
     const buffer = new Uint8Array(size)
     let offset = 0
     for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.byteLength }
-    return parseCart(JSON.parse(new TextDecoder().decode(buffer)))
+    return JSON.parse(new TextDecoder().decode(buffer))
   } catch (error) {
     if (error instanceof CheckoutError) throw error
     throw new CheckoutError(400, 'The cart request could not be read. Please try again.')
   } finally { reader.releaseLock() }
 }
 
+export async function readCart(request: Request): Promise<QuoteRequest> { return parseCart(await readJson(request)) }
+
+export function parseQuote(input: unknown) {
+  const data = record(input)
+  keys(data, ['items', 'fulfillment', 'tipCents'])
+  const { items } = parseCart({ items: data.items })
+  const method = fulfillmentMethod(data.fulfillment)
+  if (!Number.isSafeInteger(data.tipCents) || (data.tipCents as number) < 0 || (data.tipCents as number) > MAX_TIP_CENTS) throw new CheckoutError(400, 'Choose a tip between $0 and $100, in whole cents.')
+  return { items, fulfillment: method, tipCents: data.tipCents as number }
+}
+
 export async function getCheckoutQuote(input: unknown, env: SquareEnv, suppliedClient?: SquareClient): Promise<CheckoutQuote> {
-  const { items } = parseCart(input)
+  const selection = parseQuote(input)
+  const { items } = selection
   const client = suppliedClient ?? createSquareClient(env)
   // Reuse the fresh, category- and location-scoped catalog rules. No browser prices enter this flow.
   const catalog = await getProducts(env, client)
@@ -89,5 +96,6 @@ export async function getCheckoutQuote(input: unknown, env: SquareEnv, suppliedC
   if (new Set(lines.map((line) => line.variation.price!.currency)).size !== 1) {
     throw new CheckoutError(409, 'These items use different currencies and cannot be reviewed together.')
   }
-  return calculateQuote(lines, client)
+  const shipping = selection.fulfillment === 'shipping' ? shippingRate(env) : 0
+  return calculateQuote(lines, client, shipping, selection.tipCents, selection.fulfillment)
 }

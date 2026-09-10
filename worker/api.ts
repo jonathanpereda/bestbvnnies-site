@@ -1,18 +1,27 @@
 import { getProducts } from './products.ts'
 import { createSquareClient, SquareError } from './square/client.ts'
 import type { SquareEnv } from './square/client.ts'
-import { CheckoutError, getCheckoutQuote, readCart } from './checkout.ts'
+import { CheckoutError, readJson } from './checkout.ts'
+import { checkoutQuote, payPurchase, preparePurchase, publicConfig } from './payments.ts'
 
 export async function handleApi(request: Request, env: SquareEnv, development = false): Promise<Response> {
   const { pathname } = new URL(request.url)
   const isSquareCheck = development && pathname === '/api/square/location'
   const isQuote = pathname === '/api/checkout/quote'
-  if (pathname !== '/api/health' && pathname !== '/api/products' && !isSquareCheck && !isQuote) return new Response(null, { status: 404 })
-  const method = isQuote ? 'POST' : 'GET'
+  const isConfig = pathname === '/api/checkout/config'
+  const isPrepare = pathname === '/api/checkout/prepare'
+  const isPay = pathname === '/api/checkout/pay'
+  const isStatus = pathname === '/api/checkout/status'
+  if (pathname !== '/api/health' && pathname !== '/api/products' && !isSquareCheck && !isQuote && !isConfig && !isPrepare && !isPay && !isStatus) return new Response(null, { status: 404 })
+  const method = isQuote || isPrepare || isPay || isStatus ? 'POST' : 'GET'
   if (request.method !== method) return Response.json({ error: `Method not allowed. Use ${method}.` }, { status: 405, headers: { Allow: method } })
   if (pathname === '/api/health') return Response.json({ status: 'ok', service: 'bestbvnnies-site' })
   try {
-    if (isQuote) return Response.json(await getCheckoutQuote(await readCart(request), env), { headers: { 'Cache-Control': 'no-store' } })
+    const headers = { 'Cache-Control': 'no-store' }
+    if (isConfig) return Response.json(publicConfig(env), { headers })
+    if (isQuote) return Response.json(await checkoutQuote(await readJson(request), env), { headers })
+    if (isPrepare) return Response.json(await preparePurchase(await readJson(request), env), { headers })
+    if (isPay || isStatus) return Response.json(await payPurchase(await readJson(request), env, undefined, isStatus), { headers })
     if (isSquareCheck) {
       const client = createSquareClient(env)
       // The diagnostic stays Sandbox-only, even if shared infrastructure supports production.

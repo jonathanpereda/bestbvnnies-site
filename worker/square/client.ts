@@ -1,4 +1,6 @@
 export type SquareEnv = {
+  SHIPPING_FLAT_RATE_CENTS?: string
+  CHECKOUT_TOKEN_SECRET?: string
   SQUARE_ACCESS_TOKEN?: string
   SQUARE_APPLICATION_ID?: string
   SQUARE_LOCATION_ID?: string
@@ -7,10 +9,12 @@ export type SquareEnv = {
 }
 
 export class SquareError extends Error {
+  kind: 'declined' | 'unavailable'
   status: number
-  constructor(status = 502) {
+  constructor(status = 502, kind: 'declined' | 'unavailable' = 'unavailable') {
     super(status === 500 ? 'The shop is not configured yet.' : 'The shop is temporarily unavailable. Please try again.')
     this.status = status
+    this.kind = kind
   }
 }
 
@@ -26,10 +30,10 @@ export function createSquareClient(env: SquareEnv, fetcher: typeof fetch = fetch
   if (environment !== 'sandbox' && environment !== 'production') throw new SquareError(500)
   const base = environment === 'sandbox' ? 'https://connect.squareupsandbox.com' : 'https://connect.squareup.com'
 
-  async function request<T>(path: string, body?: Record<string, unknown>): Promise<T> {
+  async function request<T>(path: string, body?: Record<string, unknown>, method?: 'PUT'): Promise<T> {
     try {
       const response = await fetcher(`${base}/v2${path}`, {
-        method: body ? 'POST' : 'GET',
+        method: method ?? (body ? 'POST' : 'GET'),
         headers: {
           Authorization: `Bearer ${token}`,
           'Square-Version': '2026-08-19',
@@ -38,11 +42,14 @@ export function createSquareClient(env: SquareEnv, fetcher: typeof fetch = fetch
         ...(body ? { body: JSON.stringify(body) } : {}),
         signal: AbortSignal.timeout(10_000),
       })
-      if (!response.ok) throw new SquareError()
-      const data = await response.json() as T & { errors?: unknown[] }
-      if (!data || typeof data !== 'object' || data.errors?.length) throw new SquareError()
+      const data = await response.json() as T & { errors?: { code?: string }[] }
+      if (!response.ok || !data || typeof data !== 'object' || data.errors?.length) {
+        const declined = response.status >= 400 && response.status < 500 && data?.errors?.some((error) => ['GENERIC_DECLINE', 'CARD_DECLINED', 'CVV_FAILURE', 'ADDRESS_VERIFICATION_FAILURE', 'EXPIRATION_FAILURE', 'CARD_EXPIRED', 'INVALID_CARD', 'INSUFFICIENT_FUNDS', 'CARD_TOKEN_USED', 'VERIFY_CVV_FAILURE', 'VERIFY_AVS_FAILURE'].includes(error.code ?? ''))
+        throw new SquareError(502, declined ? 'declined' : 'unavailable')
+      }
       return data
-    } catch {
+    } catch (error) {
+      if (error instanceof SquareError) throw error
       // Never expose upstream bodies, credentials, or exception details.
       throw new SquareError()
     }
