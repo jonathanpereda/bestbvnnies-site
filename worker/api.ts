@@ -1,3 +1,4 @@
+import { getServices } from './services.ts'
 import { getProducts } from './products.ts'
 import { createSquareClient, SquareError } from './square/client.ts'
 import type { SquareEnv } from './square/client.ts'
@@ -12,12 +13,13 @@ export async function handleApi(request: Request, env: SquareEnv, development = 
   const isPrepare = pathname === '/api/checkout/prepare'
   const isPay = pathname === '/api/checkout/pay'
   const isStatus = pathname === '/api/checkout/status'
-  if (pathname !== '/api/health' && pathname !== '/api/products' && !isSquareCheck && !isQuote && !isConfig && !isPrepare && !isPay && !isStatus) return new Response(null, { status: 404 })
+  if (pathname !== '/api/health' && pathname !== '/api/products' && pathname !== '/api/services' && !isSquareCheck && !isQuote && !isConfig && !isPrepare && !isPay && !isStatus) return new Response(null, { status: 404 })
   const method = isQuote || isPrepare || isPay || isStatus ? 'POST' : 'GET'
   if (request.method !== method) return Response.json({ error: `Method not allowed. Use ${method}.` }, { status: 405, headers: { Allow: method } })
   if (pathname === '/api/health') return Response.json({ status: 'ok', service: 'bestbvnnies-site' })
   try {
     const headers = { 'Cache-Control': 'no-store' }
+    if (pathname === '/api/services') return Response.json(await getServices(env), { headers })
     if (isConfig) return Response.json(publicConfig(env), { headers })
     if (isQuote) return Response.json(await checkoutQuote(await readJson(request), env), { headers })
     if (isPrepare) return Response.json(await preparePurchase(await readJson(request), env), { headers })
@@ -32,6 +34,7 @@ export async function handleApi(request: Request, env: SquareEnv, development = 
     return Response.json(await getProducts(env), { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     if (error instanceof CheckoutError) return Response.json({ error: error.message, ...(error.issues ? { issues: error.issues } : {}) }, { status: error.status, headers: { 'Cache-Control': 'no-store' } })
+    if (pathname === '/api/services') return Response.json({ error: error instanceof SquareError && error.status === 500 ? 'Appointments are not configured yet.' : 'Services are temporarily unavailable. Please try again.' }, { status: error instanceof SquareError ? error.status : 502, headers: { 'Cache-Control': 'no-store' } })
     const safe = error instanceof SquareError ? error : new SquareError()
     return Response.json({ error: safe.message }, { status: safe.status, headers: { 'Cache-Control': 'no-store' } })
   }

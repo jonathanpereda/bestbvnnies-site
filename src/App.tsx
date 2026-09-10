@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ProductsResponse } from '../shared/products'
+import { ServicesSection } from './components/ServicesSection'
 import { SiteHeader } from './components/SiteHeader'
 import { ProductCard } from './components/ProductCard'
 import { CartPanel } from './components/CartPanel'
@@ -65,6 +66,7 @@ function App() {
               <div className="product-grid">{catalog.data.products.map((product, index) => <ProductCard key={product.id} product={product} index={index} items={cart.items} onAdd={(id) => { cart.add(id); setAnnouncement(`${product.name} added to your bag. ${cart.count + 1} items in bag.`) }} />)}</div>}
           </>}
         </section>
+        <ServicesSection />
       </main>
       <footer className="site-footer"><a className="footer-wordmark" href="#top"><img src={wordmark} alt="bestbvnnies" /></a><p>A little extra. Always.</p><a href="#top">Back to top ↑</a></footer>
       {cartOpen && <CartPanel items={cart.items} products={catalog.status === 'ready' ? catalog.data.products : []} catalogReady={catalog.status === 'ready'} onQuantity={cart.changeQuantity} onClose={() => setCartOpen(false)} onValidated={applyQuote} onPurchased={cart.clear} />}

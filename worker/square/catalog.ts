@@ -23,6 +23,10 @@ export type CatalogObject = {
   image_data?: { url?: string }
   item_variation_data?: {
     name?: string
+    available_for_booking?: boolean
+    service_duration?: number
+    price_description?: string
+    ordinal?: number
     sellable?: boolean
     pricing_type?: string
     price_money?: Money

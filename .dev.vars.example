@@ -8,3 +8,6 @@ SQUARE_STOREFRONT_CATEGORY_ID=
 SHIPPING_FLAT_RATE_CENTS=600
 # Server-only random secret, at least 32 characters
 CHECKOUT_TOKEN_SECRET=
+
+# Public Square-generated all-services Advanced Widget URL; use the matching environment
+SQUARE_BOOKING_URL=https://app.squareupsandbox.com/appointments/buyer/widget/z1cxe63u4b0vzw/LM0PSJDNJQCZP

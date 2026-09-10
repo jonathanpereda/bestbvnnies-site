@@ -2,7 +2,7 @@
 
 React + TypeScript + Vite, served by a Cloudflare Worker with Static Assets. Square owns catalog, inventory, taxes, orders and payments. This is a single-seller integration using a server-only personal access token, without OAuth or a database.
 
-Implemented: branded catalog, persisted cart, shipping/local pickup, customer details, Square-calculated review, optional tipping, Square Web Payments SDK card/wallet integration, order-linked payment and recovery. Appointments, deposits, waivers, saved cards, subscriptions and webhooks are not implemented. Nothing has been deployed.
+Implemented: branded catalog, persisted cart, shipping/local pickup, customer details, Square-calculated review, optional tipping, Square Web Payments SDK card/wallet integration, order-linked payment and recovery. Appointment service discovery and a Square-hosted booking handoff are also implemented. Custom appointment scheduling, deposits, waivers, saved cards, subscriptions and webhooks are not implemented. Nothing has been deployed.
 
 ## Local setup
 
@@ -22,6 +22,7 @@ Fill in the local configuration; restart development after changes:
 | `SQUARE_APPLICATION_ID` | Matching Sandbox application ID |
 | `SQUARE_LOCATION_ID` | Matching Sandbox location |
 | `SQUARE_ENVIRONMENT` | `sandbox` |
+| `SQUARE_BOOKING_URL` | Public Square-generated all-services Advanced Widget URL (example supplied in `.dev.vars.example`) |
 | `SQUARE_STOREFRONT_CATEGORY_ID` | Non-secret storefront category ID |
 | `SHIPPING_FLAT_RATE_CENTS` | `600` (USD cents) |
 | `CHECKOUT_TOKEN_SECRET` | Random server-only secret of at least 32 characters |
@@ -54,6 +55,7 @@ All privileged Square REST calls use `worker/square/client.ts`, including its pi
 | --- | --- |
 | `GET /api/health` | Worker health |
 | `GET /api/square/location` | Vite-development-only Sandbox connectivity check |
+| `GET /api/services` | Online-bookable appointment-service menu and public hosted booking URL |
 | `GET /api/products` | Category/location-scoped application-facing catalog |
 | `GET /api/checkout/config` | Public SDK app/location IDs, environment, SDK URL, shipping and tip options |
 | `POST /api/checkout/quote` | Fresh catalog/inventory checks and Square CalculateOrder preview; creates no order |
@@ -150,3 +152,44 @@ Dashboard visibility was **not** directly inspected: automatic browser approval 
 - [Pickup fulfillment](https://developer.squareup.com/reference/square/objects/OrderFulfillmentPickupDetails), [shipment fulfillment](https://developer.squareup.com/reference/square/objects/OrderFulfillmentShipmentDetails), [paid fulfillment visibility](https://developer.squareup.com/docs/orders-api/what-it-does)
 - [Apple Pay](https://developer.squareup.com/docs/web-payments/apple-pay), [Google Pay](https://developer.squareup.com/docs/web-payments/google-pay), [CSP requirements](https://developer.squareup.com/docs/web-payments/content-security-policy)
 - [Sandbox payment test values](https://developer.squareup.com/docs/devtools/sandbox/payments)
+
+
+## Appointment service discovery and hosted booking
+
+The Services navigation link opens the branded `#services` section. React reads `GET /api/services`; the Worker uses the existing personal-access-token client and API version **2026-08-19**. No Bookings, Availability, Customers or appointment payment API is called. This catalog-reading integration does not require seller-level Bookings API access or introduce a paid Appointments API dependency. Features and policies in the first-party booking experience depend on the seller's Square configuration/subscription and must be verified by the owner.
+
+`worker/services.ts` calls `POST /v2/catalog/search-catalog-items` with `product_types: ["APPOINTMENTS_SERVICE"]`, the configured location, and non-archived filtering. All pages are followed with repeated-cursor protection. Referenced category names are fetched with `POST /v2/catalog/batch-retrieve` in batches of 100. This is separate from the merchandise storefront-category filter; no inventory query is needed.
+
+Only non-deleted, non-archived services present at the location with at least one location-present variation explicitly marked `available_for_booking: true` are displayed. Non-bookable/deleted variations are excluded. This flag means online-bookable catalog data, **not** an available appointment slot or an exact mirror of Advanced Widget service selection. No staff selection is presented. Missing optional values receive readable fallbacks. The API exposes only service/category/variation IDs for rendering, names, descriptions, pricing, duration and bookable metadata; it omits staff IDs and other privileged catalog fields.
+
+Services are grouped under their first Square category, with additional category names retained as labels; uncategorized services use a generic menu heading. Each service appears once, with all eligible variations in Square ordinal order. Larger categorized menus get category jump links. Descriptions are rendered as React text, never injected HTML.
+
+Pricing follows Square's `FIXED_PRICING` / `VARIABLE_PRICING` representation and location overrides. Fixed money is formatted in its currency; variable prices say **Price varies**; absent/invalid prices say **See price when booking**. If Square supplies `price_description`, its plain-text label is preserved (for example, a starting-price label), without trying to parse it into a monetary value. The current pricing enum has no separate starting-price value. We do not infer `$X+` from a fixed price or manufacture starting-price semantics that the API did not supply. Verify that production catalog descriptions/prices accurately represent the owner's hosted menu, especially services advertised as starting at a price.
+
+`service_duration` is milliseconds, formatted as minutes and hours (30 min, 1 hr 15 min, 2 hr 30 min). Missing/invalid duration says **Duration shown when booking**. The API duration is a single value, not an open-ended range; the site does not append `+` or derive duration from scheduling/transition-time fields. Square confirms the actual service details and timing during booking.
+
+### Booking URL
+
+`SQUARE_BOOKING_URL` is public Worker configuration returned with the service menu. The ignored local `.dev.vars` and `.dev.vars.example` contain the supplied Sandbox URL:
+
+```text
+https://app.squareupsandbox.com/appointments/buyer/widget/z1cxe63u4b0vzw/LM0PSJDNJQCZP
+```
+
+The two branded booking links navigate in the **same tab**, explicitly handing off to Square. Browser Back returns to the site. They share one all-services URL; customers select the service again in Square. No generated widget script, inline styles, service-specific URL construction or intermediate booking step is used.
+
+Before launch, copy the seller's actual **production Advanced Widget URL** into the production Worker's `SQUARE_BOOKING_URL` alongside matching production Square environment/token/location configuration. Do not derive production widget IDs by editing the Sandbox URL. The Worker validates HTTPS, the matching Sandbox/production host and Advanced Widget path, rejecting credentials, query strings, fragments and script URLs. Changing the URL requires configuration only, not a React edit. Production credentials remain Cloudflare secrets. Nothing was deployed.
+
+Square handles availability, customer information, booking creation, deposits/prepayments, policy enforcement, reminders and appointment management. This pass does not implement custom forms/waivers, appointment payments, persistence, recovery, webhooks or state synchronization.
+
+### Service validation and manual launch checks
+
+The 10 focused service tests cover mapping, pricing/descriptive labels, duration units, variation ordering, category/location handling, exclusions, malformed optional values, pagination, empty catalog, URL validation, HTTP methods and sanitized upstream/network errors. All 45 project tests passed. Build passed; lint reports only the two existing generated-file warnings.
+
+Read-only Sandbox Catalog validation returned four representative services: Basic Gel Manicure and PROMO Gel Manicure were online-bookable and rendered at $40 / 1 hr and $25 / 1 hr. Acrylic Fill and Builder Gel Overlay were excluded because Square returned `available_for_booking: false`. The sampled services had no category assignments or `price_description` values, so categorized menus, multiple variations, variable/starting labels and alternate durations are covered by fixtures rather than claimed as live seller validation.
+
+Browser checks confirmed the live service names, prices and durations at 1280px desktop and 375px mobile widths, with no horizontal overflow. Both booking links were inspected as DOM attributes and pointed to the supplied URL; they were not followed.
+
+The supplied Sandbox hosted page is a known independent failure. It was not opened, retried or debugged. No Square Dashboard or sign-in page was accessed. The owner must manually verify the production widget destination, visible services/categories/variations, prices (including starting-price semantics), durations, automatic staff handling, availability, deposits/prepayments, policies, reminders and rescheduling/cancellation before launch. This site does not promise those features are enabled on Square Free merely because the Catalog API is accessible.
+
+Official references: [SearchCatalogItems](https://developer.squareup.com/reference/square/catalog-api/search-catalog-items), [BatchRetrieveCatalogObjects](https://developer.squareup.com/reference/square/catalog-api/batch-retrieve-catalog-objects), [bookable service representation](https://developer.squareup.com/docs/bookings-api/use-the-api), [CatalogPricingType](https://developer.squareup.com/reference/square/enums/CatalogPricingType), and [Square service fields and price descriptions](https://developer.squareup.com/docs/catalog-api/update-catalog-objects).

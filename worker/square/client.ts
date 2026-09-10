@@ -1,4 +1,5 @@
 export type SquareEnv = {
+  SQUARE_BOOKING_URL?: string
   SHIPPING_FLAT_RATE_CENTS?: string
   CHECKOUT_TOKEN_SECRET?: string
   SQUARE_ACCESS_TOKEN?: string
