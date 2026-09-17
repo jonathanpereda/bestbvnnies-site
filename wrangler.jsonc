@@ -16,7 +16,7 @@
 	"observability": {
 		"enabled": true
 	},
-	"upload_source_maps": true
+	"upload_source_maps": true,
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -34,7 +34,14 @@
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
 	 */
-	// "vars": {  "MY_VARIABLE": "production_value" }
+	"vars": {
+		"SQUARE_APPLICATION_ID": "sandbox-sq0idb-z89orW3WKDu8hct80nu6CA",
+		"SQUARE_LOCATION_ID": "LM0PSJDNJQCZP",
+		"SQUARE_ENVIRONMENT": "sandbox",
+		"SQUARE_STOREFRONT_CATEGORY_ID": "Z45KRIZ3EYQQLHEARG2ZGKE5",
+		"SHIPPING_FLAT_RATE_CENTS": "600",
+		"SQUARE_BOOKING_URL": "https://bestbvnnies.square.site/"
+	}
 	/**
 	 * Service Bindings (communicate between multiple Workers)
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings

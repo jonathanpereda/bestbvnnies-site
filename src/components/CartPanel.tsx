@@ -42,7 +42,7 @@ export function CartPanel({ items, products, catalogReady, onQuantity, onClose, 
     <div className="cart-header"><img src={wordmark} alt="bestbvnnies" /><button type="button" className="text-button" onClick={onClose} disabled={locked} autoFocus>Close bag ×</button></div>
     <div className="cart-content">
       <p className="eyebrow">THE GOOD STUFF</p><h2 id="cart-title">Your bag.</h2>
-      {receipt ? <div className="order-confirmation" role="status"><h3>Order confirmed. Thank you!</h3><p>Your payment of {formatPrice({ amount: receipt.total, currency: receipt.currency })} was successful.</p><p>Order reference: <strong>{receipt.orderReference}</strong></p><p>{receipt.fulfillment === 'shipping' ? 'Your order is with the shop for shipping.' : 'Your order is with the shop for local pickup. Contact us to confirm readiness.'}</p><button className="button" onClick={onClose}>Back to the shop</button></div> : !items.length ? <div className="empty-bag"><h3>A little room for your favorites.</h3><p>Your bag is empty. Explore the collection to find your next set.</p><button className="button" onClick={onClose}>Back to the shop ↗</button></div> : <div className="cart-layout">
+      {receipt ? <div className="order-confirmation" role="status"><h3>Order confirmed. Thank you!</h3><p>Your payment of {formatPrice({ amount: receipt.total, currency: receipt.currency })} was successful.</p><p>Order reference: <strong>{receipt.orderReference}</strong></p><p>{receipt.fulfillment === 'shipping' ? 'Your order is with the shop for shipping.' : 'Your order is with the shop for local pickup. Contact us to confirm readiness.'}</p><button className="button" onClick={onClose}>Back to the shop</button></div> : !items.length ? <div className="empty-bag"><h3>A little room for your favorites.</h3><p>Your bag is empty. Explore the collection to find your next set.</p><button className="button" onClick={onClose}>Back to the shop ↗︎</button></div> : <div className="cart-layout">
         <section aria-label="Bag items" className="cart-items">
           {estimates.map(({ variationId, quantity, found }, index) => {
             const name = found?.product.name ?? (catalogReady ? `Unavailable item ${index + 1}` : `Saved item ${index + 1}`)
@@ -74,5 +74,5 @@ export function CartPanel({ items, products, catalogReady, onQuantity, onClose, 
 
 function CartImage({ url, name }: { url: string | null; name: string }) {
   const [failed, setFailed] = useState<string | null>(null)
-  return url && failed !== url ? <img className="cart-image" src={url} alt={name} onError={() => setFailed(url)} /> : <div className="cart-image cart-image-placeholder" role="img" aria-label={`Photo unavailable for ${name}`}><span aria-hidden="true">BB<br />✳</span></div>
+  return url && failed !== url ? <img className="cart-image" src={url} alt={name} onError={() => setFailed(url)} /> : <div className="cart-image cart-image-placeholder" role="img" aria-label={`Photo unavailable for ${name}`}><span aria-hidden="true">BB<br />✳︎</span></div>
 }

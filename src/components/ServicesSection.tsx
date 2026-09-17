@@ -34,10 +34,10 @@ export function ServicesSection() {
     </div>
     <div className="booking-handoff">
       <p>Find your service here. Continue to Square to choose your service and appointment time.</p>
-      {state.status === 'ready' && <a className="button" href={state.data.bookingUrl}>Book appointment <span aria-hidden="true">↗</span></a>}
+      {state.status === 'ready' && <a className="button" href={state.data.bookingUrl}>Book appointment <span aria-hidden="true">↗︎</span></a>}
     </div>
     {state.status === 'loading' && <div className="catalog-message" role="status"><h3>Getting the menu ready…</h3><p>Loading services.</p></div>}
-    {state.status === 'error' && <div className="catalog-message" role="alert"><h3>A little interruption.</h3><p>We couldn’t load the services. Please try again in a moment.</p><button className="button" onClick={() => { setState({ status: 'loading' }); setAttempt((value) => value + 1) }}>Try services again ↗</button></div>}
+    {state.status === 'error' && <div className="catalog-message" role="alert"><h3>A little interruption.</h3><p>We couldn’t load the services. Please try again in a moment.</p><button className="button" onClick={() => { setState({ status: 'loading' }); setAttempt((value) => value + 1) }}>Try services again ↗︎</button></div>}
     {state.status === 'ready' && <>
       {state.data.services.length === 0 && <div className="catalog-message"><h3>The menu is taking a moment.</h3><p>No online-bookable services are listed here right now. You can check Square for booking details.</p></div>}
       {groups.size > 1 && <nav className="service-category-nav" aria-label="Service categories">{[...groups].map(([key, group], index) => <a key={key} href={`#service-group-${index}`}>{group.name}</a>)}</nav>}
@@ -51,7 +51,7 @@ export function ServicesSection() {
           </li>)}</ul>
         </article>)}</div>
       </section>)}
-      {state.data.services.length > 0 && <div className="services-bottom"><span aria-hidden="true">✳</span><div><h3>Made your choice?</h3><p>Square will confirm current prices, timing and booking policies.</p></div><a className="button" href={state.data.bookingUrl}>Continue to Square ↗</a></div>}
+      {state.data.services.length > 0 && <div className="services-bottom"><span aria-hidden="true">✳︎</span><div><h3>Made your choice?</h3><p>Square will confirm current prices, timing and booking policies.</p></div><a className="button" href={state.data.bookingUrl}>Continue to Square ↗︎</a></div>}
     </>}
   </section>
 }

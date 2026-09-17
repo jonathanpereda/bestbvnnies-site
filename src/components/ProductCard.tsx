@@ -29,7 +29,7 @@ export function ProductCard({ product, index, items, onAdd }: { product: Product
           <img src={image} alt={product.name} loading="lazy" width="640" height="720" onError={() => setFailedImage(image)} />
         ) : (
           <div className="image-placeholder" role="img" aria-label={`Photo not available for ${product.name}`}>
-            <span className="placeholder-star" aria-hidden="true">✳</span>
+            <span className="placeholder-star" aria-hidden="true">✳︎</span>
             <span className="placeholder-type" aria-hidden="true">ALL<br />NAILS.<br />ALL YOU.</span>
             <span className="photo-note">Photo coming soon</span>
           </div>
