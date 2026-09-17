@@ -11,3 +11,6 @@ CHECKOUT_TOKEN_SECRET=
 
 # Public Square-generated all-services Advanced Widget URL; use the matching environment
 SQUARE_BOOKING_URL=https://app.squareupsandbox.com/appointments/buyer/widget/z1cxe63u4b0vzw/LM0PSJDNJQCZP
+
+# Server-only Instagram API with Instagram Login token; never use VITE_*
+INSTAGRAM_ACCESS_TOKEN=

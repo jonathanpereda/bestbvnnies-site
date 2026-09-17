@@ -193,3 +193,31 @@ Browser checks confirmed the live service names, prices and durations at 1280px 
 The supplied Sandbox hosted page is a known independent failure. It was not opened, retried or debugged. No Square Dashboard or sign-in page was accessed. The owner must manually verify the production widget destination, visible services/categories/variations, prices (including starting-price semantics), durations, automatic staff handling, availability, deposits/prepayments, policies, reminders and rescheduling/cancellation before launch. This site does not promise those features are enabled on Square Free merely because the Catalog API is accessible.
 
 Official references: [SearchCatalogItems](https://developer.squareup.com/reference/square/catalog-api/search-catalog-items), [BatchRetrieveCatalogObjects](https://developer.squareup.com/reference/square/catalog-api/batch-retrieve-catalog-objects), [bookable service representation](https://developer.squareup.com/docs/bookings-api/use-the-api), [CatalogPricingType](https://developer.squareup.com/reference/square/enums/CatalogPricingType), and [Square service fields and price descriptions](https://developer.squareup.com/docs/catalog-api/update-catalog-objects).
+
+
+## Instagram feed
+
+The homepage's Instagram section sits directly below the Studio Menu and above the footer. React calls **GET `/api/instagram`**; only the Worker calls `https://graph.instagram.com/v25.0/me/media`. The existing Instagram API with Instagram Login connection is used as-is. There is no embed SDK, login flow, publishing, webhook, database or new dependency.
+
+Set **`INSTAGRAM_ACCESS_TOKEN`** in the ignored local `.dev.vars` (already configured locally). `.dev.vars.example` contains only its empty placeholder. Keep it server-only; never use a `VITE_*` variable. For a future deployment, provision the same variable through Cloudflare secrets and maintain/replace the token there when needed. This pass does not deploy or automate token renewal. The token is sent only in Instagram's Authorization header and is never logged or included in the feed/cache response. Redirects are not followed.
+
+The Worker requests a single page of six posts and only `id,caption,media_type,media_url,thumbnail_url,permalink,timestamp`. Its small typed response is `{ posts: [...] }`, with `id`, a caption excerpt (up to 500 characters), `mediaType`, `displayUrl`, `permalink` and nullable `timestamp`. It excludes upstream errors, paging cursors/URLs and arbitrary fields. Duplicates, invalid permalinks and unknown media types are skipped. The returned page is sorted newest-first; fewer than six posts is valid. It does not walk the account's media history to fill gaps.
+
+Images/carousels use the returned cover image; videos/Reels use `thumbnail_url` only. No video player or MP4 source is loaded. Missing/expired images get a branded link to the original post. Preview URLs must be HTTPS Instagram/Meta CDN URLs (`cdninstagram.com` or `fbcdn.net`); post links must be HTTPS Instagram permalinks. CDN image requests contain no Instagram account token. Captions render as text, never HTML. Cards and the persistent follow CTA open Instagram in a new tab with accessible link names and `noopener noreferrer`.
+
+Cloudflare's **Cache API** stores only normalized public responses for **15 minutes**, with **60 seconds** of browser caching. Query strings/cookies/visitor headers do not vary the cache key. API/network failures return a generic 503, cached at the edge for **60 seconds** to reduce repeated upstream failures. Missing configuration is not cached. Cache read/write failures do not break otherwise successful requests. Requests time out after eight seconds. The cache is per Cloudflare data center and best-effort, not a globally synchronized refresh schedule; concurrent cold misses may each fetch. No stale feed is retained beyond its TTL, so expired CDN URLs and removed posts are refreshed on the next miss. Rotating the token can leave the previous public feed visible for the remaining TTL. See [Cloudflare Cache API behavior](https://developers.cloudflare.com/workers/runtime-apis/cache/).
+
+Loading, an empty feed, API failure and individual-image failure each have a designed state. A failed feed leaves the follow link available and does not affect the shop or appointments. The existing image CSP already permits HTTPS images; no broader script/connect policy was added.
+
+Focused checks run with the existing Node test runner:
+
+```sh
+node --experimental-strip-types --test tests/instagram.test.mjs
+npm test
+npm run lint
+npm run build
+```
+
+Use Node 22.13+ for tests as described above. The local default shell currently selects Node 20, which cannot run the existing `--experimental-strip-types` test command; validation used the already-installed Node 22.23.2. All 10 Instagram tests pass. The full suite currently has one pre-existing service URL validation mismatch: `tests/services.test.mjs` expects environment-specific widget URLs, while the current `worker/services.ts` permits additional Square booking destinations. That unrelated behavior/test was left unchanged. The two existing generated-file lint warnings also remain.
+
+Live local validation returned six real posts (four videos/Reels and two carousels), with all six still previews loading. The feed was checked at 1280px desktop and 375px mobile widths; all six post links and the follow CTA remained available, without horizontal overflow or video elements. The fallback was also observed during local runtime validation. No Instagram authentication or account configuration was performed.

@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import type { ProductsResponse } from '../shared/products'
+import { InstagramSection } from './components/InstagramSection'
 import { ServicesSection } from './components/ServicesSection'
 import { SiteHeader } from './components/SiteHeader'
+import { SiteFooter } from './components/SiteFooter'
 import { ProductCard } from './components/ProductCard'
 import { CartPanel } from './components/CartPanel'
 import { useCart } from './cart/useCart'
 import type { CheckoutQuote } from '../shared/checkout'
-import wordmark from './assets/bestbvnnies-wordmark.svg'
 import pressonsIcon from './assets/icon-pressons.svg'
+import star from './assets/star.svg'
 import './App.css'
 
 type CatalogState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: ProductsResponse }
@@ -49,12 +51,29 @@ function App() {
         <section className="editorial" aria-labelledby="intro-title">
           <div className="edition-line"><span>THE BESTBVNNIES EDIT</span><span>NAILS WITH PERSONALITY</span></div>
           <div className="headline-wrap">
-            <h1 id="intro-title">SMALL DETAILS.<br /><span>BIG ENERGY.</span></h1>
-            <span className="editorial-sticker" aria-hidden="true">very<br /><em>you.</em> ✳</span>
+            <h1 id="intro-title">BEST DAMN NAILS<br /><span>IN THE WEST.</span></h1>
+            <span className="editorial-sticker" aria-hidden="true">supa<br /><em>cool.</em> ✳</span>
           </div>
-          <div className="intro-bottom"><p>Your next nail obsession starts here.</p><a className="shop-link" href="#shop">Explore the shop <span aria-hidden="true">↓</span></a></div>
+          <div className="intro-bottom"><p>You won't just find nails, you'll find yourself.</p><a className="shop-link" href="#shop">Explore the shop <span aria-hidden="true">↓</span></a></div>
         </section>
-        <div className="ticker" aria-hidden="true"><span>BESTBVNNIES ✳ PRESS PLAY. DRESS UP. ✳ BESTBVNNIES ✳ PRESS PLAY. DRESS UP. ✳ BESTBVNNIES ✳</span></div>
+        <div className="hero-shop-transition">
+          <img
+            className="transition-star"
+            src={star}
+            alt=""
+            aria-hidden="true"
+          />
+          <div className="ticker" aria-hidden="true">
+            <div className="ticker-track">
+              <span>
+                ✳ BESTBVNNIES ✳ LOCALLY-OWNED ✳ BESTBVNNIES ✳ WOMAN-OWNED ✳ BESTBVNNIES ✳ THE-BEST-BUNNIES ✳ BESTBVNNIES ✳ EST. 1989 
+              </span>
+              <span>
+                ✳ BESTBVNNIES ✳ LOCALLY-OWNED ✳ BESTBVNNIES ✳ WOMAN-OWNED ✳ BESTBVNNIES ✳ THE-BEST-BUNNIES ✳ BESTBVNNIES ✳ EST. 1989 
+              </span>
+            </div>
+          </div>
+        </div>
         <section className="shop-section" id="shop" aria-labelledby="shop-title">
           <div className="shop-heading"><div><p className="eyebrow">THE COLLECTION</p><h2 id="shop-title">Good taste.<br /><span>At your fingertips.</span></h2></div><p className="shop-note">Find your next favorite.<br />Make it your own.</p></div>
           <div className="catalog-bar"><span className="collection-label"><img src={pressonsIcon} alt="Press-on nails" />THE SHOP</span><span aria-live="polite">{catalog.status === 'ready' ? `${catalog.data.products.length} ${catalog.data.products.length === 1 ? 'product' : 'products'}` : 'THE BESTBVNNIES COLLECTION'}</span></div>
@@ -67,8 +86,9 @@ function App() {
           </>}
         </section>
         <ServicesSection />
+        <InstagramSection />
       </main>
-      <footer className="site-footer"><a className="footer-wordmark" href="#top"><img src={wordmark} alt="bestbvnnies" /></a><p>A little extra. Always.</p><a href="#top">Back to top ↑</a></footer>
+      <SiteFooter />
       {cartOpen && <CartPanel items={cart.items} products={catalog.status === 'ready' ? catalog.data.products : []} catalogReady={catalog.status === 'ready'} onQuantity={cart.changeQuantity} onClose={() => setCartOpen(false)} onValidated={applyQuote} onPurchased={cart.clear} />}
     </>
   )

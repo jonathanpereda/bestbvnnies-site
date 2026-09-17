@@ -29,8 +29,8 @@ export function ServicesSection() {
   }
   return <section id="services" className="services-section" aria-labelledby="services-title">
     <div className="services-intro">
-      <div><p className="eyebrow">THE STUDIO MENU</p><h2 id="services-title">Your nails.<br /><span>Your moment.</span></h2></div>
-      <div className="services-note"><img src={calendarIcon} alt="" /><p>A little time for you.<br />A lot of personality.</p></div>
+      <div><p className="eyebrow">THE STUDIO MENU</p><h2 id="services-title">Book an<br /><span>Appointment.</span></h2></div>
+      <div className="services-note"><img src={calendarIcon} alt="" /><p>Professional treatment.<br />Reasonable prices.</p></div>
     </div>
     <div className="booking-handoff">
       <p>Find your service here. Continue to Square to choose your service and appointment time.</p>
@@ -51,7 +51,7 @@ export function ServicesSection() {
           </li>)}</ul>
         </article>)}</div>
       </section>)}
-      {state.data.services.length > 0 && <div className="services-bottom"><span aria-hidden="true">✳</span><div><h3>Found your moment?</h3><p>Square will confirm current prices, timing and booking policies.</p></div><a className="button" href={state.data.bookingUrl}>Continue to Square ↗</a></div>}
+      {state.data.services.length > 0 && <div className="services-bottom"><span aria-hidden="true">✳</span><div><h3>Made your choice?</h3><p>Square will confirm current prices, timing and booking policies.</p></div><a className="button" href={state.data.bookingUrl}>Continue to Square ↗</a></div>}
     </>}
   </section>
 }

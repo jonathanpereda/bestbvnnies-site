@@ -26,7 +26,7 @@
 .services-bottom .button { margin-left: auto; }
 @media (min-width: 700px) {
   .services-note { display: flex; align-items: center; gap: 1rem; font-weight: 700; line-height: 1.5; }
-  .services-note img { width: 5rem; transform: rotate(8deg); }
+  .services-note img { width: 5rem; }
   .service-entry { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 3rem; }
   .service-variations { text-align: right; }
 }
