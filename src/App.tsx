@@ -54,7 +54,7 @@ function App() {
             <h1 id="intro-title">BEST DAMN NAILS<br /><span>IN THE WEST.</span></h1>
             <span className="editorial-sticker" aria-hidden="true">supa<br /><em>cool.</em> ✳︎</span>
           </div>
-          <div className="intro-bottom"><p>You won't just find nails, you'll find yourself.</p><a className="shop-link" href="#shop">Explore the shop <span aria-hidden="true">↓</span></a></div>
+          <div className="intro-bottom"><p>Handmade press-on's for anybvnni.</p><a className="shop-link" href="#shop">Explore the shop <span aria-hidden="true">↓</span></a></div>
         </section>
         <div className="hero-shop-transition">
           <img
@@ -66,16 +66,16 @@ function App() {
           <div className="ticker" aria-hidden="true">
             <div className="ticker-track">
               <span>
-                ✳︎ BESTBVNNIES ✳︎ LOCALLY-OWNED ✳︎ BESTBVNNIES ✳︎ WOMAN-OWNED ✳︎ BESTBVNNIES ✳︎ THE-BEST-BUNNIES ✳︎ BESTBVNNIES ✳︎ EST. 1989 
+                ✳︎ BESTBVNNIES ✳︎ LOCALLY-OWNED ✳︎ BESTBVNNIES ✳︎ WOMAN-OWNED ✳︎ BESTBVNNIES ✳︎ THE-BEST-BUNNIES ✳︎ BESTBVNNIES ✳︎ EST. 2025 
               </span>
               <span>
-                ✳︎ BESTBVNNIES ✳︎ LOCALLY-OWNED ✳︎ BESTBVNNIES ✳︎ WOMAN-OWNED ✳︎ BESTBVNNIES ✳︎ THE-BEST-BUNNIES ✳︎ BESTBVNNIES ✳︎ EST. 1989 
+                ✳︎ BESTBVNNIES ✳︎ LOCALLY-OWNED ✳︎ BESTBVNNIES ✳︎ WOMAN-OWNED ✳︎ BESTBVNNIES ✳︎ THE-BEST-BUNNIES ✳︎ BESTBVNNIES ✳︎ EST. 2025 
               </span>
             </div>
           </div>
         </div>
         <section className="shop-section" id="shop" aria-labelledby="shop-title">
-          <div className="shop-heading"><div><p className="eyebrow">THE COLLECTION</p><h2 id="shop-title">Good taste.<br /><span>At your fingertips.</span></h2></div><p className="shop-note">Find your next favorite.<br />Make it your own.</p></div>
+          <div className="shop-heading"><div><p className="eyebrow">THE COLLECTION</p><h2 id="shop-title">Handmade Art.<br /><span>At your fingertips.</span></h2></div><p className="shop-note">Find your next favorite.<br /></p></div>
           <div className="catalog-bar"><span className="collection-label"><img src={pressonsIcon} alt="Press-on nails" />THE SHOP</span><span aria-live="polite">{catalog.status === 'ready' ? `${catalog.data.products.length} ${catalog.data.products.length === 1 ? 'product' : 'products'}` : 'THE BESTBVNNIES COLLECTION'}</span></div>
           {catalog.status === 'loading' && <div className="catalog-message" role="status"><span className="state-symbol" aria-hidden="true">✳︎</span><h3>Finding your next favorites…</h3><p>Loading the collection.</p></div>}
           {catalog.status === 'error' && <div className="catalog-message" role="alert"><span className="state-symbol" aria-hidden="true">↻</span><h3>A little interruption.</h3><p>We couldn’t load the collection. Please try again in a moment.</p><button className="button" onClick={() => { setCatalog({ status: 'loading' }); setAttempt((value) => value + 1) }}>Try again <span aria-hidden="true">↗︎</span></button></div>}

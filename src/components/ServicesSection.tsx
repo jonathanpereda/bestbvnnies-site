@@ -30,7 +30,7 @@ export function ServicesSection() {
   return <section id="services" className="services-section" aria-labelledby="services-title">
     <div className="services-intro">
       <div><p className="eyebrow">THE STUDIO MENU</p><h2 id="services-title">Book an<br /><span>Appointment.</span></h2></div>
-      <div className="services-note"><img src={calendarIcon} alt="" /><p>Professional treatment.<br />Reasonable prices.</p></div>
+      <div className="services-note"><img src={calendarIcon} alt="" /><p>Luxury treatment.<br />Reasonable prices.</p></div>
     </div>
     <div className="booking-handoff">
       <p>Find your service here. Continue to Square to choose your service and appointment time.</p>

@@ -182,6 +182,10 @@ h3 { font-size: 1.25rem; line-height: 1.3; font-weight: 700; overflow-wrap: anyw
   .transition-star {
     display: none;
   }
+
+  .edition-line {
+    display: none;
+  }
 }
 
 @media (min-width: 640px) {

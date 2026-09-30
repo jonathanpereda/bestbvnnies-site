@@ -35,10 +35,10 @@
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
 	 */
 	"vars": {
-		"SQUARE_APPLICATION_ID": "sandbox-sq0idb-z89orW3WKDu8hct80nu6CA",
-		"SQUARE_LOCATION_ID": "LM0PSJDNJQCZP",
-		"SQUARE_ENVIRONMENT": "sandbox",
-		"SQUARE_STOREFRONT_CATEGORY_ID": "Z45KRIZ3EYQQLHEARG2ZGKE5",
+		"SQUARE_APPLICATION_ID": "sq0idp-n5SECuNVMqDj8nnM12_uNw",
+		"SQUARE_LOCATION_ID": "LVZ8PSHJDFSBQ",
+		"SQUARE_ENVIRONMENT": "production",
+		"SQUARE_STOREFRONT_CATEGORY_ID": "RV4AKVRY7WR2XMDWCSSXYFWE",
 		"SHIPPING_FLAT_RATE_CENTS": "600",
 		"SQUARE_BOOKING_URL": "https://bestbvnnies.square.site/"
 	}

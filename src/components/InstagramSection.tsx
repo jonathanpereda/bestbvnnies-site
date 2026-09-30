@@ -43,7 +43,7 @@ export function InstagramSection() {
     <div className="instagram-edition"><span>LATEST FROM INSTAGRAM</span><span>@BESTBVNNIES</span></div>
     <div className="instagram-heading">
       <h2 id="instagram-title">ON THE<br /><span>FEED.</span></h2>
-      <div className="instagram-intro"><p>The sets. The details.<br />The very best bits.</p><span className="instagram-sticker" aria-hidden="true">LOOKS GOOD<br />ON YOU. ✳︎</span></div>
+      <div className="instagram-intro"><p><br /></p><span className="instagram-sticker" aria-hidden="true">THIS COULD<br />BE YOU. ✳︎</span></div>
     </div>
     {feed.status === 'loading' && <div className="instagram-loading" role="status"><p>Pinning up the latest…</p><div className="instagram-placeholders" aria-hidden="true">{[0, 1, 2].map((i) => <span key={i}>✳︎</span>)}</div></div>}
     {feed.status === 'ready' && feed.posts.length > 0 && <ul className="instagram-grid">{feed.posts.map((post, index) => <InstagramPhoto post={post} index={index} key={post.id} />)}</ul>}
